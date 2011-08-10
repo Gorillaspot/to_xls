@@ -31,7 +31,7 @@ module ToXls
       row = sheet.row(row_index)
       case @options[:description]
       when String, Symbol
-        row.push(option[:description])
+        row.push(@options[:description])
       when Array
         @options[:description].each do |line|
           row = sheet.row(row_index)
