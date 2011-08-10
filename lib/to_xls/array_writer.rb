@@ -18,13 +18,32 @@ module ToXls
 
     def write_io(io)
       book = Spreadsheet::Workbook.new
+      write_description(book) if @options[:description]
       write_book(book)
       book.write(io)
     end
 
+    def write_description(book)
+      sheet = book.create_worksheet
+      sheet.name = "Description"
+
+      row_index = 0
+      row = sheet.row(row_index)
+      case @options[:description]
+      when String, Symbol
+        row.push(option[:description])
+      when Array
+        @options[:description].each do |line|
+          row = sheet.row(row_index)
+          row.push(line)
+          row_index += 1
+        end
+      end
+    end
+
     def write_book(book)
       sheet = book.create_worksheet
-      sheet.name = @options[:name] || 'Sheet 1'
+      sheet.name = @options[:name] || 'Data'
       write_sheet(sheet)
       return book
     end
