@@ -1,9 +1,9 @@
 require 'rubygems'
 require 'stringio'
-require 'spreadsheet'
+require 'simple_xlsx'
+require 'tempfile'
 
 module ToXls
-
   class ArrayWriter
     def initialize(array, options = {})
       @array = array
@@ -17,50 +17,44 @@ module ToXls
     end
 
     def write_io(io)
-      book = Spreadsheet::Workbook.new
+      output = Tempfile.new "serializer" 
+      book = SimpleXlsx::Serializer.new(output.path)
       write_description(book) if @options[:description]
       write_book(book)
-      book.write(io)
+      data = output.read
+      output.close 
+
+      io.write(data)
+      data
     end
 
     def write_description(book)
-      sheet = book.create_worksheet
-      sheet.name = "Description"
-
-      row_index = 0
-      row = sheet.row(row_index)
-      case @options[:description]
-      when String, Symbol
-        row.push(@options[:description])
-      when Array
-        @options[:description].each do |line|
-          row = sheet.row(row_index)
-          row.push(line)
-          row_index += 1
+      book.add_sheet("Description") do |sheet|
+        case @options[:description]
+        when String, Symbol
+          sheet.add_row(@options[:description])
+        when Array
+          @options[:description].each do |line|
+            sheet.add_row(line)
+          end
         end
       end
     end
 
     def write_book(book)
-      sheet = book.create_worksheet
-      sheet.name = @options[:name] || 'Data'
-      write_sheet(sheet)
-      return book
+      book.add_sheet(@options[:name] || 'Data') do |sheet|
+        write_sheet(sheet)
+      end
     end
 
     def write_sheet(sheet)
       if columns.any?
-        row_index = 0
-
         if headers_should_be_included?
-          fill_row(sheet.row(0), headers)
-          row_index = 1
+          sheet.add_row(headers)
         end
 
         @array.each do |model|
-          row = sheet.row(row_index)
-          fill_row(row, columns, model)
-          row_index += 1
+          fill_row(sheet, columns, model)
         end
       end
     end
@@ -95,20 +89,23 @@ module ToXls
     end
 
 private
-
-    def fill_row(row, column, model=nil)
-      case column
-      when String, Symbol
-        row.push(model ? model.send(column) : column)
+    def fill_row(sheet, columns, model=nil)
+      case columns
       when Hash
-        column.each{|key, values| fill_row(row, values, model && model.send(key))}
+        sheet.add_row(columns.keys.collect { |key|
+          if model and v=model.send(key)
+              v
+          else
+            columns.keys[key]
+          end
+        })
       when Array
-        column.each{|value| fill_row(row, value, model)}
+        sheet.add_row(columns.collect { |column|
+          model ? model.send(column) : column
+        })
       else
         raise ArgumentError, "column #{column} has an invalid class (#{ column.class })"
       end
     end
-
   end
-
 end
