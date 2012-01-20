@@ -2,6 +2,7 @@ require 'rubygems'
 require 'stringio'
 require 'simple_xlsx'
 require 'tempfile'
+require 'tmpdir'
 
 module ToXls
   class ArrayWriter
@@ -17,15 +18,26 @@ module ToXls
     end
 
     def write_io(io)
-      output = Tempfile.new "serializer" 
-      book = SimpleXlsx::Serializer.new(output.path)
-      write_description(book) if @options[:description]
-      write_book(book)
-      data = output.read
-      output.close 
+      path = File.join(Dir.tmpdir, "serializer-#{rand}")
+      write_file(path)
 
-      io.write(data)
-      data
+      File.open(path) do |file|
+        io.write(file.read)
+      end
+
+      File.unlink(path)
+
+      io
+    end
+
+    def write_file(path)
+      puts path
+
+      SimpleXlsx::Serializer.new(path) do |book|
+        write_description(book) if @options[:description]
+        write_book(book)
+      end
+
     end
 
     def write_description(book)
@@ -90,21 +102,13 @@ module ToXls
 
 private
     def fill_row(sheet, columns, model=nil)
-      case columns
-      when Hash
-        sheet.add_row(columns.keys.collect { |key|
-          if model and v=model.send(key)
-              v
-          else
-            columns.keys[key]
-          end
-        })
+      case model
       when Array
-        sheet.add_row(columns.collect { |column|
-          model ? model.send(column) : column
-        })
+        sheet.add_row(model)
       else
-        raise ArgumentError, "column #{column} has an invalid class (#{ column.class })"
+        sheet.add_row(columns.collect { |key|
+          model.send(key)
+        })
       end
     end
   end

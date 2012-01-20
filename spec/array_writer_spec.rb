@@ -6,6 +6,16 @@ describe ToXls::ArrayWriter do
     lambda { [].to_xls }.should_not raise_error
   end
 
+  it "writes data to an excel file" do
+    data = [ 
+          [   20, 'peter@gmail.com', 'Peter'],
+          [   25, 'john@gmail.com',  'John'],
+          [   27, 'day9@day9tv.com', 'Day9']
+        ]
+
+    ToXls::ArrayWriter.new(data, :columns => [:age, :email, :name]).write_file("/tmp/test.xlsx")
+  end
+=begin
   describe ":name option" do
     it "defaults to 'Sheet 1' for sheets with no name" do
       make_book([]).worksheets.first.name.should == 'Sheet 1'
@@ -159,6 +169,6 @@ describe ToXls::ArrayWriter do
   end
 
   
-
+=end
 
 end
